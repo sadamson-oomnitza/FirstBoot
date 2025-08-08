@@ -4,14 +4,15 @@ Script to set core apps and settings for new deployment.
 
 ## Homebrew app updater
 
-Use `./homebrew-update.sh` to ensure that common applications are installed and up to date on a new macOS machine. The script will install Homebrew if it isn't present and then install or upgrade the tools listed in the `APPS` array and the macOS applications listed in the `CASKS` array.
+Use `./homebrew-update.sh` to ensure that common applications are installed on a new macOS machine. The script installs Homebrew if needed and then installs any missing tools in the `APPS` array and macOS applications in the `CASKS` array (skips items already installed).
 
 ### What the script does
 
 - **Installs Homebrew if missing**: Automatically installs Homebrew when not found.
 - **Updates Homebrew**: Runs `brew update`.
-- **Ensures CLI tools are present**: Iterates the `APPS` array, installing or upgrading each.
-- **Shows missing casks before installing**: Prints a readable, bullet list of macOS apps in `CASKS` that are not yet installed, e.g.:
+- **Ensures CLI tools are present**: Installs items in `APPS` if missing; skips if already installed.
+- **Validates cask tokens**: Warns and skips unknown/invalid casks.
+- **Shows missing casks before installing**: Prints a bullet list of macOS apps in `CASKS` that are not yet installed, e.g.:
 
   ```
   Casks to install:
@@ -26,7 +27,7 @@ Use `./homebrew-update.sh` to ensure that common applications are installed and 
     - claude
   ```
 
-- **Installs/upgrades casks**: Ensures each cask in `CASKS` is installed or upgraded.
+- **Installs casks if missing**: Skips casks already installed. If an app bundle exists in `/Applications` but isn’t under Homebrew, the script attempts to adopt it using a forced install.
 - **Thorough cleanup**:
   - Runs `brew autoremove` to remove unused dependencies
   - Runs `brew cleanup -s --prune=all` to prune old versions and scrub caches
@@ -57,18 +58,25 @@ The `CASKS` list is formatted on multiple lines for readability, for example:
 ```bash
 CASKS=(
   1password
-  google-chrome
+  1password-cli
+  appcleaner
   brave-browser
-  slack
-  zoom
-  raycast
-  cursor
+  bruno
   chatgpt
   claude
+  cleanshot
+  cursor
+  google-chrome
+  imazing-profile-editor
+  itsycal
+  raycast
+  slack
+  zoom
 )
 ```
 
 ### Notes
 
-- The script is idempotent and safe to re-run; already installed apps will be upgraded when updates are available.
+- The script is idempotent and safe to re-run; items already installed are skipped (no upgrades performed by default).
 - Cleanup is aggressive by default and will attempt to remove old downloads and cached files; the script prints cache size before and after so you can see the effect.
+- After installing Homebrew, the script ensures `brew` is available in the current shell session.
