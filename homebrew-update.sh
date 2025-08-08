@@ -21,14 +21,20 @@ APPS=(
 # GUI applications distributed as casks
 CASKS=(
   1password
+  1password-cli
   brave-browser
+  bruno
   chatgpt
-  claude
   cursor
   google-chrome
   raycast
   slack
   zoom
+  imazing-profile-editor
+  appcleaner
+  claude
+  itsycal
+  cleanshot
 )
 
 install_homebrew() {
