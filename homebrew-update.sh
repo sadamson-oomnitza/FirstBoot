@@ -9,31 +9,49 @@
 set -euo pipefail
 
 # Command-line tools to install/upgrade
-APPS=(git wget node python3 htop tmux)
+APPS=(
+  git
+  wget
+  node
+  python3
+  htop
+  tmux
+  )
 
 # GUI applications distributed as casks
 CASKS=(
   1password
-  google-chrome
   brave-browser
-  slack
-  zoom
-  raycast
-  cursor 
   chatgpt
   claude
-  )
+  cursor
+  google-chrome
+  raycast
+  slack
+  zoom
+)
 
 install_homebrew() {
   echo "Homebrew not found. Installing..."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
 
+ensure_brew_in_path() {
+  # Ensure the current shell can find brew after installation
+  if command -v brew >/dev/null 2>&1; then
+    return
+  fi
+  if [[ -x "/opt/homebrew/bin/brew" ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [[ -x "/usr/local/bin/brew" ]]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+}
+
 ensure_app_installed() {
   local app="$1"
   if brew list "$app" >/dev/null 2>&1; then
-    echo "Upgrading $app..."
-    brew upgrade "$app" || true
+    echo "Already installed: $app"
   else
     echo "Installing $app..."
     brew install "$app"
@@ -43,11 +61,21 @@ ensure_app_installed() {
 ensure_cask_installed() {
   local app="$1"
   if brew list --cask "$app" >/dev/null 2>&1; then
-    echo "Upgrading $app..."
-    brew upgrade --cask "$app" || true
+    echo "Already installed: $app"
   else
     echo "Installing $app..."
-    brew install --cask "$app"
+    local install_output
+    if ! install_output=$(brew install --cask "$app" 2>&1); then
+      if [[ "$install_output" == *"already an App at"* ]] || \
+         [[ "$install_output" == *"already exists at"* ]] || \
+         [[ "$install_output" == *"already exists"* ]]; then
+        echo "Detected existing app bundle for $app. Attempting to adopt under Homebrew (forced install)..."
+        brew install --cask --force "$app" || brew reinstall --cask --force "$app" || true
+      else
+        echo "$install_output"
+        return 1
+      fi
+    fi
   fi
 }
 
@@ -55,6 +83,7 @@ main() {
   if ! command -v brew >/dev/null 2>&1; then
     install_homebrew
   fi
+  ensure_brew_in_path
 
   echo "Updating Homebrew..."
   brew update
@@ -63,9 +92,25 @@ main() {
     ensure_app_installed "$app"
   done
 
+  # Validate cask tokens and build a list of valid casks
+  local -a VALID_CASKS=()
+  local -a UNKNOWN_CASKS=()
+  for cask in "${CASKS[@]}"; do
+    if brew info --cask "$cask" >/dev/null 2>&1; then
+      VALID_CASKS+=("$cask")
+    else
+      UNKNOWN_CASKS+=("$cask")
+    fi
+  done
+
+  if ((${#UNKNOWN_CASKS[@]} > 0)); then
+    echo "Warning: Unknown casks (skipping):"
+    printf '  - %s\n' "${UNKNOWN_CASKS[@]}"
+  fi
+
   # Build a list of casks that are not yet installed
   local -a CASKS_TO_INSTALL=()
-  for cask in "${CASKS[@]}"; do
+  for cask in "${VALID_CASKS[@]}"; do
     if ! brew list --cask "$cask" >/dev/null 2>&1; then
       CASKS_TO_INSTALL+=("$cask")
     fi
@@ -78,7 +123,7 @@ main() {
     echo "No new casks to install."
   fi
 
-  for cask in "${CASKS[@]}"; do
+  for cask in "${VALID_CASKS[@]}"; do
     ensure_cask_installed "$cask"
   done
 
