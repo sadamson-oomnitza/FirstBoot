@@ -8,7 +8,11 @@
 
 set -euo pipefail
 
+# Command-line tools to install/upgrade
 APPS=(git wget node python3 htop tmux)
+
+# GUI applications distributed as casks
+CASKS=(1password cursor chatgpt)
 
 install_homebrew() {
   echo "Homebrew not found. Installing..."
@@ -26,6 +30,17 @@ ensure_app_installed() {
   fi
 }
 
+ensure_cask_installed() {
+  local app="$1"
+  if brew list --cask "$app" >/dev/null 2>&1; then
+    echo "Upgrading $app..."
+    brew upgrade --cask "$app" || true
+  else
+    echo "Installing $app..."
+    brew install --cask "$app"
+  fi
+}
+
 main() {
   if ! command -v brew >/dev/null 2>&1; then
     install_homebrew
@@ -36,6 +51,10 @@ main() {
 
   for app in "${APPS[@]}"; do
     ensure_app_installed "$app"
+  done
+
+  for cask in "${CASKS[@]}"; do
+    ensure_cask_installed "$cask"
   done
 
   echo "Cleaning up..."
